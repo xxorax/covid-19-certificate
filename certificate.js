@@ -25,7 +25,7 @@ function getProfile() {
   return fields
 }
 
-async function generatePdf(profile, reason) {
+async function generatePdf(profile, reason, date) {
   const url = 'certificate.pdf'
   const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer())
 
@@ -38,7 +38,7 @@ async function generatePdf(profile, reason) {
   }
 
   drawText(profile.name, 135, 622)
-  drawText(profile.birthday, 135, 593)
+  drawText((new Date(profile.birthday)).toLocaleDateString('fr-FR'), 135, 593)
   drawText(profile.address, 135, 559)
   drawText(`${profile.zipcode} ${profile.town}`, 135, 544)
 
@@ -61,8 +61,10 @@ async function generatePdf(profile, reason) {
   }
 
   drawText(profile['done-at'] || profile.town, 375, 140)
-  drawText(String((new Date).getDate()), 478, 140)
-  drawText(String((new Date).getMonth() + 1).padStart(2, '0'), 502, 140)
+
+  var date = new Date(date);
+  drawText(String(date.getDate()), 478, 140)
+  drawText(String(date.getMonth() + 1).padStart(2, '0'), 502, 140)
 
   const signatureArrayBuffer = await fetch(profile.signature).then(res => res.arrayBuffer())
   const signatureImage = await pdfDoc.embedPng(signatureArrayBuffer)
@@ -89,6 +91,12 @@ function downloadBlob(blob, fileName) {
 
 function getAndSaveReason() {
   const {value} = $('input[name="field-reason"]:checked')
+  localStorage.setItem('last-reason', value)
+  return value
+}
+
+function getAndSaveDate() {
+  const {value} = $('input[name="field-date"]')
   localStorage.setItem('last-reason', value)
   return value
 }
@@ -134,11 +142,6 @@ $('#form-profile').addEventListener('submit', event => {
   location.reload()
 })
 
-// We do not want to use a date field on Android, they're unusable, target only iOS devices.
-if (isIos()) {
-  $('#field-birthday').type = 'date'
-}
-
 $('#check-same-town').addEventListener('change', applyDoneAt)
 applyDoneAt()
 
@@ -151,7 +154,8 @@ $('#reset-signature').addEventListener('click', () => signaturePad.clear())
 $('#form-generate').addEventListener('submit', async event => {
   event.preventDefault()
   const reason = getAndSaveReason()
-  const pdfBlob = await generatePdf(getProfile(), reason)
+  const date = getAndSaveDate()
+  const pdfBlob = await generatePdf(getProfile(), reason, date)
   downloadBlob(pdfBlob, 'attestation.pdf')
 })
 
